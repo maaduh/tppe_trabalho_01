@@ -2,6 +2,7 @@ import unicodedata
 import re
 from src.models import Author
 from src.case2_abreviations import Case2AbreviationsCurator
+from src.case3_conectives import Case3ConectivesCurator
 
 class InvalidAuthorDataException(Exception):
     """Exceção levantada para dados inválidos de autor."""
@@ -96,7 +97,10 @@ class AuthorCurator:
     @classmethod
     def curation_conectives(cls, authors: list[Author]) -> list[Author]:
         """Caso 3: Partículas de e uso de ponto nas abreviações opcionais."""
-        return cls._curate_by_identity(authors, unify_ids=False)
+        if authors is None:
+            raise InvalidAuthorDataException("Lista de autores não pode ser None.")
+
+        return Case3ConectivesCurator.curate(authors)
 
     @classmethod
     def curation_grouped_names(cls, authors: list[Author]) -> list[Author]:
