@@ -1,6 +1,7 @@
 import unicodedata
 import re
 from src.models import Author
+from src.case2_abreviations import Case2AbreviationsCurator
 
 class InvalidAuthorDataException(Exception):
     """Exceção levantada para dados inválidos de autor."""
@@ -87,8 +88,7 @@ class AuthorCurator:
     def curation_abreviations(cls, authors: list[Author]) -> list[Author]:
         """Caso 2: Sobrenome + Iniciais dos nomes.
         Deduplica unificando nomes completos e abreviados."""
-        # ToDo
-        pass
+        return Case2AbreviationsCurator.curate(authors)
 
     @classmethod
     def curation_conectives(cls, authors: list[Author]) -> list[Author]:
