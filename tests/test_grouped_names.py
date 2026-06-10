@@ -32,7 +32,7 @@ class TestGroupedNames:
             [Author(31303, "Veronica de Oliveira Moreira"), Author(608303, "Veronica de Oliveira Moreira")]
         )
     ])
-    def test_curation_grouped_names(self, input_list, expected_list):
+    
     def test_curation_grouped_names_specific(self, input_list, expected_list):
         """Teste com os exemplos específicos do enunciado."""
         result = AuthorCurator.curation_grouped_names(input_list)
