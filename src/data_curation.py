@@ -99,8 +99,90 @@ class AuthorCurator:
     @classmethod
     def curation_grouped_names(cls, authors: list[Author]) -> list[Author]:
         """Caso 4: Iniciais dos nomes agrupadas + sobrenome."""
-        # ToDo
-        pass
+        if authors is None:
+            raise InvalidAuthorDataException(
+                "Lista de autores não pode ser None."
+            )
+
+        # Partículas (preposições) que devem ser ignoradas na extração de iniciais
+        PARTICLES = {'de', 'da', 'do', 'das', 'dos', 'e'}
+
+        def extract_signature(name: str):
+            """
+            Extrai (sobrenome, tupla_de_iniciais) de um nome que NÃO contém vírgula.
+            Pressupõe formato 'Nomes Sobrenome'.
+            Exemplos:
+                'Veronica de Oliveira Moreira' -> ('moreira', ('V', 'O'))
+                'V. de O. Moreira'             -> ('moreira', ('V', 'O'))
+                'SH Guaraldi'                  -> ('guaraldi', ('S', 'H'))
+                'Sérgio Henrique Guaraldi'     -> ('guaraldi', ('S', 'H'))
+            """
+            name = ' '.join(name.split())  # normaliza espaços
+            tokens = name.split()
+            if not tokens:
+                return '', ()
+
+            surname = tokens[-1].lower()
+            given_tokens = tokens[:-1]
+            initials = []
+
+            for token in given_tokens:
+                clean = token.rstrip('.').lower()
+                if clean in PARTICLES:
+                    continue
+
+                # Iniciais agrupadas (ex: "SH", "VC") -> cada letra vira uma inicial
+                if token.isupper() and len(token) >= 2 and '.' not in token:
+                    for ch in token:
+                        initials.append(ch.upper())
+                # Nome completo ou inicial com ponto (ex: "Veronica", "V.")
+                else:
+                    if clean:
+                        initials.append(clean[0].upper())
+
+            return surname, tuple(initials)
+
+        # Separa autores com vírgula (formato invertido) – estes permanecem inalterados
+        result = [None] * len(authors)
+        non_comma_authors = []
+        non_comma_indices = []
+
+        for idx, author in enumerate(authors):
+            if ',' in author.nome:
+                result[idx] = author  # mantém o original
+            else:
+                non_comma_authors.append(author)
+                non_comma_indices.append(idx)
+
+        # Agrupa apenas os autores sem vírgula
+        if non_comma_authors:
+            groups = {}
+            for idx, author in enumerate(non_comma_authors):
+                sig = extract_signature(author.nome)
+                groups.setdefault(sig, []).append((idx, author))
+
+            # Escolhe o nome mais completo (mais longo) para cada grupo
+            best_name_for_sig = {}
+            for sig, members in groups.items():
+                best_member = max(members, key=lambda m: len(m[1].nome))
+                best_name_for_sig[sig] = best_member[1].nome
+
+            # Aplica o nome canônico aos autores do grupo
+            processed = []
+            for author in non_comma_authors:
+                sig = extract_signature(author.nome)
+                canonical_name = best_name_for_sig[sig]
+                processed.append(Author(author.id, canonical_name))
+
+            # Insere os autores processados nas posições originais
+            for pos, author in zip(non_comma_indices, processed):
+                result[pos] = author
+        else:
+            # Se todos os autores têm vírgula, retorna a lista original
+            return authors
+
+        return result
+
 
     @classmethod
     def curation_ids(cls, authors: list[Author]) -> list[Author]:
