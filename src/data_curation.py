@@ -3,6 +3,7 @@ import re
 from src.models import Author
 from src.case2_abreviations import Case2AbreviationsCurator
 from src.case3_conectives import Case3ConectivesCurator
+from src.curation_punctuation import PunctuationCurator
 
 class InvalidAuthorDataException(Exception):
     """Exceção levantada para dados inválidos de autor."""
@@ -48,45 +49,7 @@ class AuthorCurator:
 
     @classmethod
     def curation_punctuation(cls, authors: list[Author]) -> list[Author]:
-        """Caso 1: Diferenças de grafia (tipográficas).
-        Unifica registros baseados no mesmo nome ignorando acentos/pontuação, 
-        priorizando a versão com a acentuação e pontuação corretas."""
-
-        if authors is None:
-            raise InvalidAuthorDataException(
-                "Lista de autores não pode ser None."
-            )
-
-        canonical_names = {}
-
-        # Descobre a melhor grafia para cada autor
-        for author in authors:
-            key = cls._normalize_name(author.nome)
-
-            if (
-                key not in canonical_names
-                or cls._quality_score(author.nome)
-                > cls._quality_score(canonical_names[key])
-            ):
-                canonical_names[key] = (
-                    author.nome
-                    .replace("’", "'")
-                    .replace("`", "'")
-                )
-
-        # Atualiza todos os registros
-        result = []
-        for author in authors:
-            key = cls._normalize_name(author.nome)
-
-            result.append(
-                Author(
-                    author.id,
-                    canonical_names[key]
-                )
-            )
-
-        return result
+        return PunctuationCurator(authors).curate()
 
     @classmethod
     def curation_abreviations(cls, authors: list[Author]) -> list[Author]:
