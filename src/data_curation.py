@@ -113,36 +113,61 @@ class AuthorCurator:
         if authors is None:
             raise InvalidAuthorDataException("Lista de autores não pode ser None.")
 
-        # 1. Agrupa autores por identidade
-        groups = {} # key -> list of authors
-        for author in authors:
-            key = cls._get_identity_key(author.nome)
-            if key not in groups:
-                groups[key] = []
-            groups[key].append(author)
-            
-        # 2. Define canônicos
-        canonical_ids = {}
-        canonical_names = {}
-        for key, group_authors in groups.items():
-            canonical_ids[key] = min(a.id for a in group_authors)
-            
-            best_name = group_authors[0].nome
-            max_score = cls._quality_score(best_name)
-            for a in group_authors:
-                score = cls._quality_score(a.nome)
-                if score > max_score:
-                    max_score = score
-                    best_name = a.nome
-            canonical_names[key] = best_name
+        groups = cls._group_authors_by_identity(authors)
+        canonical_ids, canonical_names = cls._define_canonical_authors(groups)
 
-        # 3. Gera resultado
         result = []
         for author in authors:
             key = cls._get_identity_key(author.nome)
             new_id = canonical_ids[key] if unify_ids else author.id
             result.append(Author(new_id, canonical_names[key]))
+
         return result
+
+    @classmethod
+    def _group_authors_by_identity(cls, authors: list[Author]) -> dict[tuple, list[Author]]:
+        """Agrupa autores que representam a mesma identidade."""
+        groups = {}
+
+        for author in authors:
+            key = cls._get_identity_key(author.nome)
+
+            if key not in groups:
+                groups[key] = []
+
+            groups[key].append(author)
+
+        return groups
+
+    @classmethod
+    def _define_canonical_authors(
+        cls,
+        groups: dict[tuple, list[Author]]
+    ) -> tuple[dict[tuple, int], dict[tuple, str]]:
+        """Define o ID e o nome canônico de cada grupo de autores."""
+        canonical_ids = {}
+        canonical_names = {}
+
+        for key, group_authors in groups.items():
+            canonical_ids[key] = min(a.id for a in group_authors)
+            canonical_names[key] = cls._select_best_author_name(group_authors)
+
+        return canonical_ids, canonical_names
+
+    @classmethod
+    def _select_best_author_name(cls, authors: list[Author]) -> str:
+        """Seleciona o nome com maior qualidade dentro de um grupo de autores."""
+        best_name = authors[0].nome
+        max_score = cls._quality_score(best_name)
+
+        for author in authors:
+            score = cls._quality_score(author.nome)
+
+            if score > max_score:
+                max_score = score
+                best_name = author.nome
+
+        return best_name
 
     @classmethod
     def _get_identity_key(cls, name: str) -> tuple:
